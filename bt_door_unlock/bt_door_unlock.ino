@@ -18,7 +18,8 @@ bool batLedState = false;
 const float lowBatThreshold = 4.5;
 
 //Authentication
-const int PIN = 1234;
+const int UnlockPIN = 1234;
+const int LockPIN = 1111;
 int userPin = 0;
 
 void setup() 
@@ -73,14 +74,16 @@ void loop()
   {
     digitalWrite(statLedPin, HIGH);
     userPin = Serial.parseInt();
-    if(userPin == PIN)
+    if(userPin == LockPIN || userPin == UnlockPIN)
     {
+      const int rotationDir = userPin == UnlockPIN? 0: 180;
       Serial.write("Access Granted\n");
       servo.attach(servoPin);
-      for(int i = 0; i < (2 * 15300); i++)
+      for(int i = 0; i < 15300; i++)
       {
-        servo.write(0);
+        servo.write(rotationDir);
       }
+      
       servo.write(servoNeutral);
       servo.detach();
     }
