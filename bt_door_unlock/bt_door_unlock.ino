@@ -15,7 +15,7 @@ const int statLedPin = 12;
 
 unsigned long batLedTimer = 0;
 bool batLedState = false;
-const float lowBatThreshold = 4.5;
+const float lowBatThreshold = 2.0; //4v
 
 //Authentication
 const int UnlockPIN = 1234;
