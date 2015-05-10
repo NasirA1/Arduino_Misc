@@ -19,7 +19,7 @@ const float lowBatThreshold = 2.0; //4v
 
 //Authentication
 const int UnlockPIN = 1234;
-const int LockPIN = 1111;
+const int LockPIN = 0000;
 int userPin = 0;
 
 void setup() 
@@ -79,7 +79,7 @@ void loop()
       const int rotationDir = userPin == UnlockPIN? 0: 180;
       Serial.write("Access Granted\n");
       servo.attach(servoPin);
-      for(int i = 0; i < 15300; i++)
+      for(int i = 0; i < 27000; i++)
       {
         servo.write(rotationDir);
       }
