@@ -9,6 +9,7 @@ const int servoPin = 3;
 const int batLedPin = 11;
 const int statLedPin = 10;
 const int batteryReadingPin = A0;
+const int wakeUpPin = 2; //interrupt pin
 
 
 //Battery usage
@@ -27,63 +28,68 @@ int userPin = 0;
 bool locked = true;
 bool idle = true;
 
+unsigned long awakeTimer;
+const unsigned long awakePeriod = 1000;
 
-void sleepNow()
+
+/***************************************************
+ *  Service routine for pin2 interrupt
+ ***************************************************/
+void pin2Interrupt(void)
 {
-    /* Now is the time to set the sleep mode. In the Atmega8 datasheet
-     * http://www.atmel.com/dyn/resources/prod_documents/doc2486.pdf on page 35
-     * there is a list of sleep modes which explains which clocks and 
-     * wake up sources are available in which sleep modus.
-     *
-     * In the avr/sleep.h file, the call names of these sleep modus are to be found:
-     *
-     * The 5 different modes are:
-     *     SLEEP_MODE_IDLE         -the least power savings 
-     *     SLEEP_MODE_ADC
-     *     SLEEP_MODE_PWR_SAVE
-     *     SLEEP_MODE_STANDBY
-     *     SLEEP_MODE_PWR_DOWN     -the most power savings
-     *
-     *  the power reduction management <avr/power.h>  is described in 
-     *  http://www.nongnu.org/avr-libc/user-manual/group__avr__power.html
-     */  
-     
-  set_sleep_mode(SLEEP_MODE_IDLE);   // sleep mode is set here
- 
-  sleep_enable();          // enables the sleep bit in the mcucr register
-                             // so sleep is possible. just a safety pin 
-  
-  power_adc_disable();
-  power_spi_disable();
-  power_timer0_disable();
-  power_timer1_disable();
-  power_timer2_disable();
-  power_twi_disable();
-  //power_all_disable();
-  
-  
-  sleep_mode();            // here the device is actually put to sleep!!
- 
-                             // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
-  sleep_disable();         // first thing after waking from sleep:
-                            // disable sleep...
- 
-  power_all_enable();   
+  /* This will bring us back from sleep. */  
+  /* We detach the interrupt to stop it from 
+   * continuously firing while the interrupt pin
+   * is low.
+   */
+  detachInterrupt(0);
 }
 
 
+/***************************************************
+ *  Enters the arduino into sleep mode.
+ ***************************************************/
+void enterSleep(void)
+{
+  
+  /* Setup pin2 as an interrupt and attach handler. */
+  attachInterrupt(0, pin2Interrupt, LOW);
+  delay(100);
+  
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  
+  sleep_enable();
+  
+  sleep_mode();
+  
+  /* The program will continue from here. */
+  
+  /* First thing to do is disable sleep. */
+  sleep_disable(); 
+}
+
+
+/***************************************************
+ *  Setup for the Arduino.           
+ ***************************************************/
 void setup() 
 {
   Serial.begin(9600);
   pinMode(batteryReadingPin, INPUT);
   pinMode(batLedPin, OUTPUT);
   pinMode(statLedPin, OUTPUT);
+  pinMode(wakeUpPin, INPUT);
   
   digitalWrite(batLedPin, LOW);
-  digitalWrite(statLedPin, LOW);  
+  digitalWrite(statLedPin, LOW);
+  awakeTimer = millis() + awakePeriod;  
 }
 
 
+/***************************************************
+ *  Low battery indicator
+ *  Returns true when Arduino battery is low 
+ ***************************************************/
 bool batteryLow()
 {
   float batteryReading = analogRead(batteryReadingPin);
@@ -96,6 +102,9 @@ bool batteryLow()
 }
 
 
+/***************************************************
+ *  Blinks low battery indicator LED
+ ***************************************************/
 void blinkBatLed()
 {
   unsigned long now = millis();
@@ -110,6 +119,9 @@ void blinkBatLed()
 }
 
 
+/***************************************************
+ *  Main application loop
+ ***************************************************/
 void loop() 
 {
   //Handle battery indicator
@@ -119,9 +131,8 @@ void loop()
   }
   
   //Handle input and proccess..
-  if(idle && Serial.available() > 0)
+  if(Serial.available() > 0)
   {
-    idle = false;
     digitalWrite(statLedPin, HIGH);
     userPin = Serial.parseInt();
     
@@ -152,7 +163,16 @@ void loop()
   }
   
   digitalWrite(statLedPin, LOW);
-  idle = true;
-  sleepNow();  
+
+
+  //Go to sleep to preserve power
+  if(millis() > awakeTimer)
+  {  
+    Serial.println("zZz.");
+    delay(500);
+    awakeTimer = millis() + awakePeriod;
+    enterSleep();
+  }
 }
+
 
