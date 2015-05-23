@@ -102,9 +102,11 @@ void blinkBatLed()
   if(now > batLedTimer)
   {
     batLedState = !batLedState;
-    batLedTimer = now + 1000;
+    batLedTimer = now + 999;
+    digitalWrite(batLedPin, HIGH); //quick flash for 1 ms
+    delay(1);
   }
-  digitalWrite(batLedPin, HIGH);
+  digitalWrite(batLedPin, LOW);
 }
 
 
