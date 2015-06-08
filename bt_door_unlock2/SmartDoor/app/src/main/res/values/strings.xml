@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">SmartDoor</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="ble_not_supported">BLE not supported</string>
+</resources>

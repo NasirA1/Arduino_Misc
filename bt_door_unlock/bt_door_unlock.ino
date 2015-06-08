@@ -20,16 +20,15 @@ const int wakeUpPin = 2; //interrupt pin
 
 unsigned long batLedTimer = 0;
 bool batLedState = false;
-const float lowBatThreshold = 2.5; //5v
+const float lowBatThreshold = 1.5; //3v
 
 //Lock parameters
-const int PIN = ----;
-int userPin = 0;
+const String PIN = "9999";
+String userPin = "";
 bool locked = true;
-bool idle = true;
 
 unsigned long awakeTimer;
-const unsigned long awakePeriod = 1000;
+const unsigned long awakePeriod = 10000;
 
 
 /***************************************************
@@ -63,6 +62,7 @@ void enterSleep(void)
   sleep_mode();
   
   /* The program will continue from here. */
+  Serial.println("AWAKE");
   
   /* First thing to do is disable sleep. */
   sleep_disable(); 
@@ -129,12 +129,17 @@ void loop()
   {
     blinkBatLed();
   }
-  
+    
   //Handle input and proccess..
   if(Serial.available() > 0)
   {
     digitalWrite(statLedPin, HIGH);
-    userPin = Serial.parseInt();
+    String header = Serial.readStringUntil('\n');
+    userPin = Serial.readStringUntil('\n');
+    
+    //debug
+    Serial.print("Recv: ");
+    Serial.println(userPin);
     
     if(userPin == PIN)
     {
