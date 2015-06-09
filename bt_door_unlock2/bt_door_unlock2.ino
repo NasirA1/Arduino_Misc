@@ -25,6 +25,8 @@ unsigned long batLedTimer = 0;
 bool batLedState = false;
 const float lowBatThreshold = 1.5; //3v
 
+bool clientConnected = false;
+
 //commands
 //s: status
 //c: control[PIN]
@@ -86,8 +88,10 @@ void sleepMode()
   pinMode(SERIAL_RX_PIN, INPUT_PULLUP);
   PCintPort::attachInterrupt(SERIAL_RX_PIN, &WakeHandler, LOW);
   PCintPort::attachInterrupt(buttonPin, &WakeHandler, LOW);
-  Serial.print("AT+SLEEP");
-  delay(500);
+  if(!clientConnected) {
+    Serial.print("AT+SLEEP");
+    delay(500);
+  }
   LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);  
 
   //Wakeup here...  
@@ -114,7 +118,13 @@ void loop()
   //Handle input and proccess..
   if(Serial.available() > 0 || buttonReading == HIGH)
   {
-    input = buttonReading == HIGH? PIN: Serial.readString();
+    if(buttonReading == HIGH){
+      input = PIN;
+    }
+    else { 
+      input = Serial.readString();
+      clientConnected = true;
+    }
         
     if(input == PIN) //control command (open/close)
     {
@@ -122,12 +132,14 @@ void loop()
       if(locked)
       {
         rotationDir = 0;
-        Serial.print("Unlocking");
+        if(clientConnected)
+          Serial.print("Unlocking");
       }
       else
       {
         rotationDir = 180;
-        Serial.print("Locking");    
+        if(clientConnected)
+          Serial.print("Locking");    
       }
       
       servo.attach(servoPin);
@@ -140,18 +152,27 @@ void loop()
       servo.detach();
       locked = !locked;
       
-      if(buttonReading == HIGH)
-      {
+      if(buttonReading == HIGH && !clientConnected){
         sleepMode();
       }
     }
     else if(input == "s") //status command
     {
-      if(locked) Serial.print("1");
-      else Serial.print("0");
+      if(locked) {
+       if(clientConnected) 
+          Serial.print("1");
+      } else {
+        if(clientConnected)
+          Serial.print("0");
+      }
+    }
+    else if(input == "OK+CONN")
+    {
+      clientConnected = true;
     }
     else if(input == "OK+LOST") //client disconnected
     {
+      clientConnected = false;
       sleepMode();
     }
   }
