@@ -23,7 +23,7 @@ bool locked = true;
 const int batLedPin = 11;
 unsigned long batLedTimer = 0;
 bool batLedState = false;
-const float lowBatThreshold = 1.5; //3v
+const int lowBatThreshold = 330; //3.3v
 
 bool clientConnected = false;
 
@@ -32,22 +32,22 @@ bool clientConnected = false;
 //c: control[PIN]
 
 
-void WakeHandler()
-{
-  // Nothing to do; just wakes the device. 
-}
 
-
-/***************************************************
- *  Initialisation           
- ***************************************************/
-void setup()
+const long InternalReferenceVoltage = 1080;  // Adjust this value to your board's specific internal BG voltage
+ 
+// Code courtesy of "Coding Badly" and "Retrolefty" from the Arduino forum
+// results are Vcc * 100
+// So for example, 5V would be 500.
+int getBandgap () 
 {
-  Serial.begin(SERIAL_BAUD);
-  pinMode(batLedPin, OUTPUT);
-  pinMode(buttonPin, INPUT);
-  digitalWrite(batLedPin, LOW);
-}
+  // REFS0 : Selects AVcc external reference
+  // MUX3 MUX2 MUX1 : Selects 1.1V (VBG)  
+   ADMUX = bit (REFS0) | bit (MUX3) | bit (MUX2) | bit (MUX1);
+   ADCSRA |= bit( ADSC );  // start conversion
+   while (ADCSRA & bit (ADSC)){ }  // wait for conversion to complete
+   int results = (((InternalReferenceVoltage * 1024) / ADC) + 5) / 10; 
+   return results;
+} // end of getBandgap
 
 
 /***************************************************
@@ -56,8 +56,7 @@ void setup()
  ***************************************************/
 bool batteryLow()
 {
-  //TODO
-  return true;
+  return getBandgap() < lowBatThreshold;
 }
 
 
@@ -99,6 +98,27 @@ void sleepMode()
   PCintPort::detachInterrupt(SERIAL_RX_PIN);
   PCintPort::detachInterrupt(buttonPin);
   Serial.begin(SERIAL_BAUD);
+}
+
+
+/***************************************************
+ *  Wakeup handler        
+ ***************************************************/
+void WakeHandler()
+{
+  // Nothing to do; just wakes the device. 
+}
+
+
+/***************************************************
+ *  Initialisation           
+ ***************************************************/
+void setup()
+{
+  Serial.begin(SERIAL_BAUD);
+  pinMode(batLedPin, OUTPUT);
+  pinMode(buttonPin, INPUT);
+  digitalWrite(batLedPin, LOW);
 }
 
 
