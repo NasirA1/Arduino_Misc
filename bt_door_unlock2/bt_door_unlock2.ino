@@ -19,61 +19,66 @@ const String PIN = "----";
 String input = "";
 bool locked = true;
 
-//battery
-const int batLedPin = 11;
-unsigned long batLedTimer = 0;
-bool batLedState = false;
-const int lowBatThreshold = 330; //3.3v
+//batteries level measurement
+//index 0: 9v battery to power the mcu
+//index 1: 4x1.5v AA batteries to power the servo
+const int batLedPin[2] = {11, 12};
+const int batReadingPin[2] = {A0, A1};
+unsigned long batLedTimer[2] = {0, 0};
+bool batLedState[2] = {false, false};
+const float lowBatThreshold[2] = {7.0, 4.0};
+//voltage div resistors
+const float R1[2] = {20000, 10000};
+const float R2[2] = {10000, 10000};
 
+//client connection state
 bool clientConnected = false;
-
 //commands
 //s: status
 //c: control[PIN]
 
 
-
-const long InternalReferenceVoltage = 1080;  // Adjust this value to your board's specific internal BG voltage
- 
-// Code courtesy of "Coding Badly" and "Retrolefty" from the Arduino forum
-// results are Vcc * 100
-// So for example, 5V would be 500.
-int getBandgap () 
+float getBatteryVoltage(const int index)
 {
-  // REFS0 : Selects AVcc external reference
-  // MUX3 MUX2 MUX1 : Selects 1.1V (VBG)  
-   ADMUX = bit (REFS0) | bit (MUX3) | bit (MUX2) | bit (MUX1);
-   ADCSRA |= bit( ADSC );  // start conversion
-   while (ADCSRA & bit (ADSC)){ }  // wait for conversion to complete
-   int results = (((InternalReferenceVoltage * 1024) / ADC) + 5) / 10; 
-   return results;
-} // end of getBandgap
+  int reading = analogRead(batReadingPin[index]);
+  float vOut = (float)reading * (3.3 / 1023.0);
+  float vIn = (R1[index] + R2[index])/(R2[index]) * vOut;  
+  return vIn;
+}
 
 
 /***************************************************
  *  Low battery indicator
- *  Returns true when Arduino battery is low 
+ *  Returns true when battery is low 
  ***************************************************/
-bool batteryLow()
+bool batteryLow(const int index)
 {
-  return getBandgap() < lowBatThreshold;
+  float vin = getBatteryVoltage(index);
+//debug code  
+//  if(index == 0)
+//    Serial.print(vin);
+//  else {
+//    Serial.print(",");
+//    Serial.println(vin);
+//  }
+  return vin < lowBatThreshold[index];  
 }
 
 
 /***************************************************
  *  Blinks low battery indicator LED
  ***************************************************/
-void blinkBatLed()
+void blinkBatLed(const int index)
 {
   unsigned long now = millis();
-  if(now > batLedTimer)
+  if(now > batLedTimer[index])
   {
-    batLedState = !batLedState;
-    batLedTimer = now + 999;
-    digitalWrite(batLedPin, HIGH); //quick flash for 1 ms
+    batLedState[index] = !batLedState[index];
+    batLedTimer[index] = now + 999;
+    digitalWrite(batLedPin[index], HIGH); //quick flash for 1 ms
     delay(1);
   }
-  digitalWrite(batLedPin, LOW);
+  digitalWrite(batLedPin[index], LOW);
 }
 
 
@@ -116,9 +121,11 @@ void WakeHandler()
 void setup()
 {
   Serial.begin(SERIAL_BAUD);
-  pinMode(batLedPin, OUTPUT);
+  pinMode(batLedPin[0], OUTPUT);
+  pinMode(batLedPin[1], OUTPUT);
   pinMode(buttonPin, INPUT);
-  digitalWrite(batLedPin, LOW);
+  digitalWrite(batLedPin[0], LOW);
+  digitalWrite(batLedPin[1], LOW);
 }
 
 
@@ -127,10 +134,12 @@ void setup()
  ***************************************************/
 void loop() 
 {
-  //Handle battery indicator
-  if(batteryLow())
-  {
-    blinkBatLed();
+  //Handle battery indicators
+  if(batteryLow(0)){
+    blinkBatLed(0);
+  }
+  if(batteryLow(1)){
+    blinkBatLed(1);
   }
   
   int buttonReading = digitalRead(buttonPin);
@@ -163,7 +172,7 @@ void loop()
       }
       
       servo.attach(servoPin);
-      for(int i = 0; i < 27000; i++)
+      for(int i = 0; i < 13000; i++)
       {
         servo.write(rotationDir);
       }
